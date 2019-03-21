@@ -1,10 +1,38 @@
 import React from 'react';
 import DatasetUpload from './analysis-helpers/DatasetUploaderHelper';
 import ReactJson from 'react-json-view';
-import {Grid, Card, CardContent} from "@material-ui/core";
-import {CheckCircle, Cancel} from "@material-ui/icons";
+import PropTypes from 'prop-types';
+import { Grid, Card, CardContent, Button, TextField, FormControl, InputLabel, MenuItem, Select }
+    from "@material-ui/core";
+import { CheckCircle, Cancel } from "@material-ui/icons";
+import { createMuiTheme, MuiThemeProvider, withStyles } from "@material-ui/core/styles";
+import { blue } from '@material-ui/core/colors';
 
-const InputView = {File: 'File Upload', Text: 'Textual Input'};
+const styles = theme => ({
+    root: {
+        display: 'flex',
+        flexWrap: 'wrap',
+    },
+    formControl: {
+        margin: theme.spacing.unit,
+        minWidth: 120,
+    },
+    selectEmpty: {
+        marginTop: theme.spacing.unit * 2,
+    },
+});
+
+const theme = createMuiTheme({
+    palette: {
+        primary: blue,
+    },
+    typography: {
+        useNextVariants: true,
+        fontSize: 18,
+    },
+});
+
+const InputView = { File: 'File Upload', Text: 'Textual Input' };
 const SampleInput = {
     "docs": ["Toward Democratic, Lawful Citizenship for AIs, Robots, and Corporations",
         "Dr. Ben Goertzel, CEO of SingularityNET, shares his thoughts about the AI Citizenship Test",
@@ -23,7 +51,7 @@ const SampleInput = {
 };
 
 
-export default class TopicAnalysisService extends React.Component {
+class TopicAnalysisService extends React.Component {
     constructor(props) {
         super(props);
         this.download = this.download.bind(this);
@@ -61,7 +89,7 @@ export default class TopicAnalysisService extends React.Component {
                 const isValid = Object.assign({}, state.isValid);
                 isValid[key] = valid;
 
-                return {isValid: isValid};
+                return { 'isValid': isValid };
             });
         }
     }
@@ -76,7 +104,7 @@ export default class TopicAnalysisService extends React.Component {
 
     handleInputUpdate(event) {
         this.setValidationStatus('validJSON', false);
-        event.preventDefault()
+        event.preventDefault();
     }
 
     handleFileUpload(file) {
@@ -85,11 +113,11 @@ export default class TopicAnalysisService extends React.Component {
         fileReader.onload = () => {
             let encoded = fileReader.result.replace(/^data:(.*;base64,)?/, "");
             encoded.length % 4 > 0 &&
-            (encoded += "=".repeat(4 - (encoded.length % 4)));
+                (encoded += "=".repeat(4 - (encoded.length % 4)));
             let user_value = this.validateJSON(atob(encoded));
             let condition = this.validateValues(user_value);
             this.setValidationStatus("validJSON", condition);
-            this.setState({datasetFile: file});
+            this.setState({ datasetFile: file });
         };
     }
 
@@ -114,10 +142,24 @@ export default class TopicAnalysisService extends React.Component {
         });
     }
 
+    renderMuiServiceMethodNames(serviceMethodNames) {
+        const serviceNameOptions = ["Select a method", ...serviceMethodNames];
+        return serviceNameOptions.map((serviceMethodName, index) => {
+            return <MenuItem value={serviceMethodName} key={index}>{serviceMethodName}</MenuItem>;
+        });
+    }
+
     renderFormInput() {
         const inputOptions = ["File Upload", "Textual Input"];
         return inputOptions.map((inputOption, index) => {
             return <option key={index}>{inputOption}</option>;
+        });
+    }
+
+    renderMuiFormInput() {
+        const inputOptions = ["File Upload", "Textual Input"];
+        return inputOptions.map((inputOption, index) => {
+            return <MenuItem value={inputOption} key={index}>{inputOption}</MenuItem>;
         });
     }
 
@@ -141,7 +183,8 @@ export default class TopicAnalysisService extends React.Component {
         link.setAttribute('download', 'result.json');
         document.body.appendChild(link);
         link.click();
-	link.remove();
+
+        link.remove();
     }
 
     validateJSON(value) {
@@ -224,11 +267,16 @@ export default class TopicAnalysisService extends React.Component {
     }
 
     renderForm() {
+        const { classes } = this.props;
+
         const service = this.props.protoSpec.findServiceByName(this.state.serviceName);
         const serviceMethodNames = service.methodNames;
 
         return (
+            /*
             <React.Fragment>
+                <div className="container-fluid">
+                <form>
                 <div className="row">
                     <div className="col-md-3 col-lg-3"
                          style={{padding: "10px", fontSize: "13px", marginLeft: "10px"}}>Method Name:
@@ -253,6 +301,20 @@ export default class TopicAnalysisService extends React.Component {
                                 onChange={this.handleFormUpdate}>
                             {this.renderFormInput()}
                         </select>
+                    </div>
+                </div>
+                <div className="form-row">
+                    <div className="form-group col-md-6">
+                        <label htmlFor="numOfTopics">Number of Topics</label>
+                        <div className="col-md-6">
+                        <input type='text' id="numOfTopics" name="numOfTopics" className="form-control"></input>
+                        </div>    
+                    </div>
+                    <div className="form-group col-md-6">
+                        <label htmlFor="topicDivider">Topic Divider</label>
+                        <div className="col-md-6">
+                        <input type='text' id="topicDivider" name="topicDivider" className="form-control"></input> 
+                        </div>   
                     </div>
                 </div>
                 <div className="row">
@@ -309,6 +371,41 @@ export default class TopicAnalysisService extends React.Component {
                             onClick={this.submitAction}>Call Topic Analysis
                     </button>
                 </div>
+            </form>
+            </div>
+            </React.Fragment>
+            */
+            <React.Fragment>
+                <MuiThemeProvider theme={theme}>
+                    <form className={classes.root}  >
+                        <FormControl className={classes.formControl}>
+                            <InputLabel htmlFor="methodName">Method Name</InputLabel>
+                            <Select
+                                value={this.state.methodName}
+                                onChange={this.handleFormUpdate}
+                                inputProps={{
+                                    name: 'methodName',
+                                    id: 'methodName',
+                                }}
+                            >
+                                {this.renderMuiServiceMethodNames(serviceMethodNames)}
+                            </Select>
+                        </FormControl>
+                        <FormControl>
+                            <InputLabel htmlFor="inputFormType">Input Type</InputLabel>
+                            <Select
+                                value={this.state.inputFormType}
+                                onChange={this.handleFormUpdate}
+                                inputProps={{
+                                    name: 'inputFormType',
+                                    id: 'inputFormType',
+                                }}
+                            >
+                                {this.renderMuiFormInput()}
+                            </Select>
+                        </FormControl>
+                    </form>
+                </MuiThemeProvider>
             </React.Fragment>
         )
     }
@@ -325,10 +422,10 @@ export default class TopicAnalysisService extends React.Component {
                     }}
                     elevation={0}
                 >
-                    <CardContent style={{textAlign: "center"}}>
+                    <CardContent style={{ textAlign: "center" }}>
                         <h4>
-                            <CheckCircle style={{fontSize: "36px", color: "#54C21F", textAlign: "center"}}/>
-                            <br/>
+                            <CheckCircle style={{ fontSize: "36px", color: "#54C21F", textAlign: "center" }} />
+                            <br />
                             Analysis started!
                         </h4>
                         <p>Follow the link below to check the status of the analysis.</p>
@@ -358,7 +455,7 @@ export default class TopicAnalysisService extends React.Component {
                         height: 5
                     }}
                 />
-                <ReactJson src={response} theme="apathy:inverted"/>
+                <ReactJson src={response} theme="apathy:inverted" />
                 <div className="row" align="center">
                     <button type="button" className="btn btn-primary" onClick={this.download}>
                         Download Results JSON file
@@ -384,5 +481,10 @@ export default class TopicAnalysisService extends React.Component {
         }
     }
 
-
 }
+
+TopicAnalysisService.propTypes = {
+    classes: PropTypes.object.isRequired,
+};
+
+export default withStyles({})(TopicAnalysisService);
