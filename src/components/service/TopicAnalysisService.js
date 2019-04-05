@@ -1,16 +1,18 @@
 import React from 'react';
-    import ReactJson from 'react-json-view';
+import ReactJson from 'react-json-view';
 import PropTypes from 'prop-types';
 import {
     Grid,
     Card,
     CardContent,
-    Button, 
+    Button,
     TextField,
     FormControl,
+    FormControlLabel,
     InputLabel,
     MenuItem,
     Select,
+    Checkbox,
     Divider,
     Icon,
     FormHelperText,
@@ -159,6 +161,8 @@ class TopicAnalysisService extends React.Component {
 
             errors: {},
 
+            tokenize: true,
+
             fileAccept: "text/plain",
             inputType: InputType.Text,
         }
@@ -279,20 +283,24 @@ class TopicAnalysisService extends React.Component {
     validateAllValues() {
         // utilize all validators function since we have to validate everything
         let found_errors = {};
-        
+
         if (this.state.methodName === "Select a method") {
             Object.assign(found_errors, { "methodName": "No method selected." });
         }
 
         for (let parameter of Object.values(Parameters)) {
             let state_error = this.validators[parameter]();
-            Object.assign(found_errors, state_error);
+            if (state_error[parameter]) {
+                Object.assign(found_errors, state_error);
+            }
         }
 
         let file_texts_errors = [];
         if (this.state.inputType === InputType.Text) {
             let state_error = this.validators[InputType.Text]();
-            Object.assign(found_errors, state_error);
+            if (state_error[InputType.Text]) {
+                Object.assign(found_errors, state_error);
+            }
         } else if (this.state.inputType === InputType.File) {
             if (this.state.file_texts.length === 0) {
                 let state_error = { [InputType.File]: "No file selected" }
@@ -307,7 +315,8 @@ class TopicAnalysisService extends React.Component {
         }
 
         this.setErrorState(found_errors);
-
+        console.log('found_errors: ', found_errors);
+        console.log('file_texts_errors: ', file_texts_errors);
         // check if there is an error property or errors object is empty
         return Object.keys(found_errors).length === 0 && file_texts_errors.length === 0;
     }
@@ -328,10 +337,17 @@ class TopicAnalysisService extends React.Component {
                 this.setErrorState(state_error);
             }
 
-            if (event_target_name === 'methodName' && this.state.inputType === InputType.Text) {
-                this.setState({ [InputType.Text]: DefaultInputs.docs[0] });
-                this.setErrorState({ [InputType.Text]: null, "methodName": null }); // discard error if there was one
+            if (event_target_name === 'methodName') {
+                let state_error = { "methodName": null }
+
+                if (this.state.inputType === InputType.Text) {
+                    state_error[InputType.Text] = null;
+                    this.setState({ [InputType.Text]: DefaultInputs.docs.join('') });
+                }
+
+                this.setErrorState(state_error);    // discard errors if there were
             }
+
         });
     }
 
@@ -344,6 +360,10 @@ class TopicAnalysisService extends React.Component {
     /****************************************
      * Form submitting operations
      ****************************************/
+    tokenize(text_string) {
+        return text_string.split('.');
+    }
+
     createRequestInputs() {
         let areAllValidInputs = this.validateAllValues();
 
@@ -351,14 +371,26 @@ class TopicAnalysisService extends React.Component {
             let request_inputs = {};
 
             request_inputs.num_topics = this.state[Parameters.NumOfTopics];
-            request_inputs.topic_divider = this.state[Parameters.NumOfTopics];
-            request_inputs.maxiter = this.state[Parameters.NumOfTopics];
-            request_inputs.beta = this.state[Parameters.NumOfTopics];
+            request_inputs.topic_divider = this.state[Parameters.TopicDivider];
+            request_inputs.maxiter = this.state[Parameters.MaxIter];
+            request_inputs.beta = this.state[Parameters.Beta];
 
             if (this.state.inputType === InputType.Text) {
-                request_inputs.docs = [this.state[InputType.Text]];
+                if (this.state.tokenize) {
+                    request_inputs.docs = this.tokenize(this.state[InputType.Text]);
+                } else {
+                    request_inputs.docs = [this.state[InputType.Text]];
+                }
             } else {
                 request_inputs.docs = this.state.file_texts.map(text => text.content);
+
+                if (this.state.tokenize) {
+                    let tokenized_docs = [];
+                    for (let doc of request_inputs.docs) {
+                        tokenized_docs.concat(this.tokenize(doc));
+                    }
+                    request_inputs.docs = tokenized_docs;
+                }
             }
 
             return request_inputs;
@@ -366,10 +398,10 @@ class TopicAnalysisService extends React.Component {
 
         return null;
     }
-    
+
     submitAction() {
         let request_inputs = this.createRequestInputs();
-
+        console.log('request_inputs', request_inputs);
         if (request_inputs) {
             this.props.callApiCallback(this.state.serviceName,
                 this.state.methodName, request_inputs);
@@ -494,6 +526,14 @@ class TopicAnalysisService extends React.Component {
                         <Grid container className={classes.container}>
                             <Grid item sm={12} className={classes.item}>
                                 {this.renderTextDataInput(classes)}
+                            </Grid>
+                            <Grid item sm={12} className={classes.item}>
+                                <FormControlLabel
+                                        control={
+                                            <Checkbox checked={this.state.tokenize} disabled/>
+                                        }
+                                        label="Tokenize input texts"
+                                    />
                             </Grid>
                         </Grid>
 
