@@ -1,39 +1,37 @@
 import React from 'react';
-import DatasetUpload from './analysis-helpers/DatasetUploaderHelper';
-import ReactJson from 'react-json-view';
+    import ReactJson from 'react-json-view';
 import PropTypes from 'prop-types';
-import { Grid, Card, CardContent, Button, TextField, FormControl, InputLabel, MenuItem, Select }
+import {
+    Grid,
+    Card,
+    CardContent,
+    Button, 
+    TextField,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
+    Divider,
+    Icon,
+    FormHelperText,
+    Typography
+}
     from "@material-ui/core";
-import { CheckCircle, Cancel } from "@material-ui/icons";
-import { createMuiTheme, MuiThemeProvider, withStyles } from "@material-ui/core/styles";
+import classNames from 'classnames';
+import { createMuiTheme, MuiThemeProvider, withStyles, withTheme } from "@material-ui/core/styles";
 import { blue } from '@material-ui/core/colors';
+import { CheckCircle, Cancel } from "@material-ui/icons";
+import ResetIcon from '@material-ui/icons/Autorenew';
+import ValidateIcon from '@material-ui/icons/LineStyle';
+import CallIcon from '@material-ui/icons/SettingsRemote';
 
-const styles = theme => ({
-    root: {
-        display: 'flex',
-        flexWrap: 'wrap',
-    },
-    formControl: {
-        margin: theme.spacing.unit,
-        minWidth: 120,
-    },
-    selectEmpty: {
-        marginTop: theme.spacing.unit * 2,
-    },
-});
+import TextUploader from "./analysis-helpers/TextUploader";
 
-const theme = createMuiTheme({
-    palette: {
-        primary: blue,
-    },
-    typography: {
-        useNextVariants: true,
-        fontSize: 18,
-    },
-});
-
-const InputView = { File: 'File Upload', Text: 'Textual Input' };
-const SampleInput = {
+const InputType = { File: 'File Upload', Text: 'Textual Input' };
+const Parameters = {
+    NumOfTopics: 'Number of Topics', TopicDivider: 'Topic Divider', MaxIter: 'Max Iteration', Beta: 'Beta'
+};
+const DefaultInputs = {
     "docs": ["Toward Democratic, Lawful Citizenship for AIs, Robots, and Corporations",
         "Dr. Ben Goertzel, CEO of SingularityNET, shares his thoughts about the AI Citizenship Test",
         "I am writing this on a plane flying away from Malta, where I just spoke about SingularityNET at the Malta Blockchain Summit.",
@@ -44,136 +42,343 @@ const SampleInput = {
         "In a nation governed by rule of law, citizenship has a clearly defined meaning with rights and responsibilities relatively straightforwardly derivable from written legal documents using modern analytical logic (admittedly with some measure of quasi-subjective interpretation via case law).",
         "Saudi Arabian citizenship also has a real meaning, but it's a different sort of meaning\u200a—\u200aderivable from various historical Islamic writings (the Quran, the hadiths, etc.) based on deep contextual interpretation by modern and historical Islamic figures. This is a species of legal interpretation that is understood rather poorly by myself personally, and one that is less easily comprehensible by current AIs.",
         "I'm aware that affiliation with Saudi Arabia in any sense has become controversial in recent weeks due to the apparent murder of Jamal Khashoggi."],
-    "num_topics": 2,
-    "topic_divider": 0,
-    "maxiter": 22,
-    "beta": 1
+    "num_topics": '2',
+    "topic_divider": '0',
+    "maxiter": '22',
+    "beta": '1'
 };
 
+const styles = theme => ({
+    root: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        // border: 'solid red 1px',
+    },
+    container: {
+        display: 'flex',
+        width: '100%',
+        marginTop: theme.spacing.unit,
+        marginBottom: theme.spacing.unit,
+        // border: 'solid black 1px',
+    },
+    formControl: {
+        margin: theme.spacing.unit * 2,
+        minWidth: 120,
+        width: '100%',
+    },
+    selectEmpty: {
+        marginTop: theme.spacing.unit * 2,
+    },
+    item: {
+        display: 'flex',
+        justifyContent: 'center',
+        // border: 'solid black 1px',
+    },
+    divider: {
+        width: '90%',
+        marginLeft: 'auto',
+        marginRight: 'auto',
+    },
+    button: {
+        margin: theme.spacing.unit,
+    },
+    leftIcon: {
+        marginRight: theme.spacing.unit,
+        fontSize: 20,
+    },
+    error: {
+        color: '#f44336',
+    },
+    centerText: {
+        textAlign: 'center',
+    }
+});
+
+const theme = createMuiTheme({
+    palette: {
+        primary: blue,
+    },
+    typography: {
+        useNextVariants: true,
+        fontSize: 20,
+    },
+});
 
 class TopicAnalysisService extends React.Component {
     constructor(props) {
         super(props);
-        this.download = this.download.bind(this);
-        this.handleFileUpload = this.handleFileUpload.bind(this);
+
         this.handleFormUpdate = this.handleFormUpdate.bind(this);
-        this.handleInputUpdate = this.handleInputUpdate.bind(this);
-        this.submitAction = this.submitAction.bind(this);
-        this.handleValidateRequest = this.handleValidateRequest.bind(this);
-        this.resetInternalState = this.resetInternalState.bind(this);
+
+        // setup validators for each form input
+        this.validateTextInput = this.validateTextInput.bind(this);
+        this.validateNumOfTopics = this.validateNumOfTopics.bind(this);
+        this.validateTopicDivider = this.validateTopicDivider.bind(this);
+        this.validateMaxIter = this.validateMaxIter.bind(this);
+        this.validateBeta = this.validateBeta.bind(this);
+        this.validators = {
+            [InputType.Text]: this.validateTextInput,
+            [Parameters.NumOfTopics]: this.validateNumOfTopics,
+            [Parameters.TopicDivider]: this.validateTopicDivider,
+            [Parameters.MaxIter]: this.validateMaxIter,
+            [Parameters.Beta]: this.validateBeta,
+        };
+
+        this.validateText = this.validateText.bind(this);
+        this.validateAllValues = this.validateAllValues.bind(this);
+        this.createRequestInputs = this.createRequestInputs.bind(this);
 
         this.state = this.getInitialState();
+        this.resetInternalState = this.resetInternalState.bind(this);
 
+        this.handleUploadedTexts = this.handleUploadedTexts.bind(this);
+        this.submitAction = this.submitAction.bind(this);
+
+        this.download = this.download.bind(this);
     }
 
+    /**************************************
+     * State related operations
+     **************************************/
     getInitialState() {
         return {
             serviceName: "TopicAnalysis",
             methodName: "Select a method",
-            datasetFile: null,
-            dataset: null,
-            enteredJSON: null,
-            isValid: {
-                datasetFile: false,
-                validJSON: false,
-            },
-            fileAccept: ".json",
-            internal_error: "",
-            inputFormType: InputView.Text,
+
+            file_texts: [],
+
+            // form inputs
+            [InputType.Text]: '',
+            [Parameters.NumOfTopics]: '4',
+            [Parameters.TopicDivider]: '0',
+            [Parameters.MaxIter]: '22',
+            [Parameters.Beta]: '1',
+
+            errors: {},
+
+            fileAccept: "text/plain",
+            inputType: InputType.Text,
         }
     };
 
-    setValidationStatus(key, valid) {
-        if (this.state.isValid[key] !== valid) {
-            this.setState(state => {
-                const isValid = Object.assign({}, state.isValid);
-                isValid[key] = valid;
-
-                return { 'isValid': isValid };
-            });
-        }
+    // set error state appropriately
+    // since error state is a nested object in state, it needs some workaround
+    setErrorState(partial_errors) {
+        let nested_error_object = this.state.errors;
+        Object.assign(nested_error_object, partial_errors);
+        this.setState({ errors: nested_error_object });
     }
 
     resetInternalState() {
         this.setState(this.getInitialState());
     }
 
-    canBeInvoked() {
-        return (this.state.methodName !== "Select a method") && this.state.isValid['validJSON'];
+    /****************************************
+     * Form validation operations
+     ****************************************/
+    validateTextInput() {
+        return this.validateText(InputType.Text, this.state[InputType.Text]);
     }
 
-    handleInputUpdate(event) {
-        this.setValidationStatus('validJSON', false);
-        event.preventDefault();
-    }
-
-    handleFileUpload(file) {
-        const fileReader = new FileReader();
-        fileReader.readAsDataURL(file);
-        fileReader.onload = () => {
-            let encoded = fileReader.result.replace(/^data:(.*;base64,)?/, "");
-            encoded.length % 4 > 0 &&
-                (encoded += "=".repeat(4 - (encoded.length % 4)));
-            let user_value = this.validateJSON(atob(encoded));
-            let condition = this.validateValues(user_value);
-            this.setValidationStatus("validJSON", condition);
-            this.setState({ datasetFile: file });
-        };
-    }
-
-    handleFormUpdate(event) {
-        this.setState({
-            [event.target.name]: event.target.value
-        });
-        if (event.target.name === 'methodName' && this.state.inputFormType === InputView.Text) {
-            let default_val = document.getElementById('string_area');
-            default_val.value = JSON.stringify(SampleInput, undefined, 4);
-            this.setValidationStatus("validJSON", false);
-            this.setState({
-                internal_error: "",
-            })
+    validateText(inputType, textValue, fileName) {
+        if (textValue.trim().length === 0) {
+            if (fileName) {
+                return { [inputType]: `File '${fileName}' is empty. Text should not be empty.` }
+            } else {
+                return { [inputType]: "Text can not be empty" };
+            }
+        } else {
+            return { [inputType]: null };
         }
     }
 
-    renderServiceMethodNames(serviceMethodNames) {
-        const serviceNameOptions = ["Select a method", ...serviceMethodNames];
-        return serviceNameOptions.map((serviceMethodName, index) => {
-            return <option key={index}>{serviceMethodName}</option>;
+    validateNumber(number_string, field_name, only_integer) {
+        let validation = { number: null, error: null };
+        if (number_string.trim().length === 0) {
+            validation.error = `${field_name} must be specified as a number.`;
+            return validation;
+        }
+
+        let float_value = parseFloat(number_string);
+        if (isNaN(float_value)) {
+            validation.error = `${field_name} must be a number.`;
+            return validation;
+        }
+
+        if (only_integer) {
+            if (/\./.test(number_string)) {
+                console.log('dot found in validation');
+                validation.error = `${field_name} must be an integer.`;
+                return validation;
+            } else {
+                validation.number = parseInt(float_value);
+                return validation;
+            }
+        } else {
+            validation.number = float_value;
+            return validation;
+        }
+    }
+
+    validateNumOfTopics() {
+        let validation = this.validateNumber(this.state[Parameters.NumOfTopics], "Number of topics", true);
+
+        if (validation.error) {
+            return { [Parameters.NumOfTopics]: validation.error };
+        } else if (validation.number < 1) {
+            return { [Parameters.NumOfTopics]: "Number of topics isn't big enough for analysis." };
+        } else {
+            return { [Parameters.NumOfTopics]: null };
+        }
+    }
+
+    validateTopicDivider() {
+        let validation = this.validateNumber(this.state[Parameters.TopicDivider], "Topic divider", true);
+
+        if (validation.error) {
+            return { [Parameters.TopicDivider]: validation.error };
+        } else if (validation.number < 0) {
+            return { [Parameters.TopicDivider]: "Topic divider is less than zero." };
+        } else {
+            return { [Parameters.TopicDivider]: null };
+        }
+    }
+
+    validateMaxIter() {
+        let validation = this.validateNumber(this.state[Parameters.MaxIter], "Max Iteration", true);
+
+        if (validation.error) {
+            return { [Parameters.MaxIter]: validation.error };
+        } else if (validation.number <= 0 || validation.number > 500) {
+            return {
+                [Parameters.MaxIter]:
+                    "Max iteration value (maxiter) should have a value greater than 0 and less than 501."
+            };
+        } else {
+            return { [Parameters.MaxIter]: null };
+        }
+    }
+
+    validateBeta() {
+        let validation = this.validateNumber(this.state[Parameters.Beta], "Beta");
+
+        if (validation.error) {
+            return { [Parameters.Beta]: validation.error };
+        } else if (validation.number <= 0 || validation.number > 1) {
+            return {
+                [Parameters.Beta]: "Beta should have a value greater than 0 and less than or equal to 1."
+            };
+        } else {
+            return { [Parameters.Beta]: null };
+        }
+    }
+
+    validateAllValues() {
+        // utilize all validators function since we have to validate everything
+        let found_errors = {};
+        
+        if (this.state.methodName === "Select a method") {
+            Object.assign(found_errors, { "methodName": "No method selected." });
+        }
+
+        for (let parameter of Object.values(Parameters)) {
+            let state_error = this.validators[parameter]();
+            Object.assign(found_errors, state_error);
+        }
+
+        let file_texts_errors = [];
+        if (this.state.inputType === InputType.Text) {
+            let state_error = this.validators[InputType.Text]();
+            Object.assign(found_errors, state_error);
+        } else if (this.state.inputType === InputType.File) {
+            if (this.state.file_texts.length === 0) {
+                let state_error = { [InputType.File]: "No file selected" }
+                Object.assign(found_errors, state_error);
+            } else {
+                for (let text of this.state.file_texts) {
+                    if (text.error) {
+                        file_texts_errors.push(text.error);
+                    }
+                }
+            }
+        }
+
+        this.setErrorState(found_errors);
+
+        // check if there is an error property or errors object is empty
+        return Object.keys(found_errors).length === 0 && file_texts_errors.length === 0;
+    }
+
+    /****************************************
+     * Form inputs change handling operations
+     ****************************************/
+    handleFormUpdate(event) {
+        const event_target_name = event.target.name;
+        const event_target_value = event.target.value;
+        console.log('target_value', event.target.value);
+        this.setState({ [event_target_name]: event_target_value }, () => {
+            // run validation and other codes after ensuring state is updated
+            if (event_target_name in this.validators) {
+                console.log('validation performed');
+                // validate form input change
+                let state_error = this.validators[event_target_name]();
+                this.setErrorState(state_error);
+            }
+
+            if (event_target_name === 'methodName' && this.state.inputType === InputType.Text) {
+                this.setState({ [InputType.Text]: DefaultInputs.docs[0] });
+                this.setErrorState({ [InputType.Text]: null, "methodName": null }); // discard error if there was one
+            }
         });
     }
 
-    renderMuiServiceMethodNames(serviceMethodNames) {
-        const serviceNameOptions = ["Select a method", ...serviceMethodNames];
-        return serviceNameOptions.map((serviceMethodName, index) => {
-            return <MenuItem value={serviceMethodName} key={index}>{serviceMethodName}</MenuItem>;
-        });
+    handleUploadedTexts(texts) {
+        this.setState({ file_texts: texts });
+        this.setErrorState({ [InputType.File]: null });
+        console.log('handleUploadedTexts: ', texts);
     }
 
-    renderFormInput() {
-        const inputOptions = ["File Upload", "Textual Input"];
-        return inputOptions.map((inputOption, index) => {
-            return <option key={index}>{inputOption}</option>;
-        });
-    }
+    /****************************************
+     * Form submitting operations
+     ****************************************/
+    createRequestInputs() {
+        let areAllValidInputs = this.validateAllValues();
 
-    renderMuiFormInput() {
-        const inputOptions = ["File Upload", "Textual Input"];
-        return inputOptions.map((inputOption, index) => {
-            return <MenuItem value={inputOption} key={index}>{inputOption}</MenuItem>;
-        });
-    }
+        if (areAllValidInputs) {
+            let request_inputs = {};
 
+            request_inputs.num_topics = this.state[Parameters.NumOfTopics];
+            request_inputs.topic_divider = this.state[Parameters.NumOfTopics];
+            request_inputs.maxiter = this.state[Parameters.NumOfTopics];
+            request_inputs.beta = this.state[Parameters.NumOfTopics];
+
+            if (this.state.inputType === InputType.Text) {
+                request_inputs.docs = [this.state[InputType.Text]];
+            } else {
+                request_inputs.docs = this.state.file_texts.map(text => text.content);
+            }
+
+            return request_inputs;
+        }
+
+        return null;
+    }
+    
     submitAction() {
-        this.props.callApiCallback(this.state.serviceName,
-            this.state.methodName, {
-                docs: this.state.dataset['docs'],
-                num_topics: this.state.dataset['num_topics'],
-                topic_divider: this.state.dataset['topic_divider'],
-                maxiter: this.state.dataset['maxiter'] === undefined ? '2' : this.state.dataset['maxiter'],
-                beta: this.state.dataset['beta'] === undefined ? "1" : this.state.dataset['beta']
-            });
+        let request_inputs = this.createRequestInputs();
+
+        if (request_inputs) {
+            this.props.callApiCallback(this.state.serviceName,
+                this.state.methodName, request_inputs);
+        }
     }
 
+    /****************************************
+     * Result downloading operations
+     ****************************************/
     download() {
         const link = document.createElement('a');
         link.setAttribute("type", "hidden");
@@ -187,83 +392,58 @@ class TopicAnalysisService extends React.Component {
         link.remove();
     }
 
-    validateJSON(value) {
-        let user_value;
-        try {
-            user_value = JSON.parse(value);
-        } catch (error) {
-            this.setState({
-                internal_error: error.toString()
-            })
-        }
-        return user_value;
+    /****************************************
+     * UI rendering operations
+     ****************************************/
+    renderMuiServiceMethodNames(serviceMethodNames) {
+        const serviceNameOptions = ["Select a method", ...serviceMethodNames];
+        return serviceNameOptions.map((serviceMethodName, index) => {
+            return <MenuItem value={serviceMethodName} key={index}>{serviceMethodName}</MenuItem>;
+        });
     }
 
-    validateValues(user_value) {
-        const user_value_keys = Object.keys(user_value);
-        const sample_keys = Object.keys(SampleInput);
-        let found_keys = sample_keys.every(r => user_value_keys.indexOf(r) > -1);
-        if (!found_keys) {
-            this.setState({
-                internal_error: "One or more of docs, num_topics, topic_divider, maxiter or beta is/are missing."
-            });
+    renderMuiFormInputTypes() {
+        return Object.values(InputType).map((inputType, index) => {
+            return <MenuItem value={inputType} key={index}>{inputType}</MenuItem>;
+        });
+    }
+
+    renderTextDataInput(classes) {
+        if (this.state.inputType === InputType.Text) {
+            return <TextField className={classes.formControl}
+                id={InputType.Text}
+                name={InputType.Text}
+                label="Text Input"
+                multiline
+                fullWidth
+                rows="6"
+                value={this.state[InputType.Text]}
+                margin="normal"
+                variant="outlined"
+                onChange={this.handleFormUpdate}
+                error={Boolean(this.state.errors[InputType.Text])}
+                helperText={this.state.errors[InputType.Text]}
+            />;
+        } else if (this.state.inputType === InputType.File) {
+            return (<div className={classes.formControl}>
+                <TextUploader
+                    handleUploadedTexts={this.handleUploadedTexts}
+                    validateText={this.validateText}
+                    fileAccept={this.state.fileAccept}
+                    parentRejection={this.state.errors[InputType.File]}
+                />
+                {this.state.errors[InputType.File]
+                    && <FormHelperText error className={classes.centerText}>
+                        {this.state.errors[InputType.File]}
+                    </FormHelperText>
+                }
+            </div>)
+                ;
         } else {
-            // Now let check the validation of the internal values.
-            if (user_value['docs'].length === 0) {
-                this.setState({
-                    internal_error: "Document or text number is zero"
-                });
-                return false;
-            }
-            if (parseInt(user_value['num_topics'], 10) < 1) {
-                this.setState({
-                    internal_error: "Num topics isn't big enough for analysis."
-                });
-                return false;
-            }
-            if (parseInt(user_value['topic_divider'], 10) < 0) {
-                this.setState({
-                    internal_error: "Topic divider is less than zero."
-                });
-                return false;
-            }
-            if (parseInt(user_value['maxiter'], 10) <= 0 || parseInt(user_value['maxiter'], 10) > 500) {
-                this.setState({
-                    internal_error: "Max iteration value (maxiter) should have a value greater than 0 and less than 501."
-                });
-                return false;
-            }
-            if (parseFloat(user_value['beta']) <= 0 || parseFloat(user_value['beta']) > 1) {
-                this.setState({
-                    internal_error: "Beta should have a value greater than 0 and less than or equal to 1."
-                });
-                return false;
-            }
-            this.setState({
-                dataset: user_value
-            });
-            return true;
+            return <Typography variant='body1' className={classNames(classes.formControl, classes.centerText)}>
+                Select an appropriate input type
+            </Typography>
         }
-        return false;
-    }
-
-    handleValidateRequest(event) {
-        let string_area = document.getElementById('string_area');
-        let value = string_area.value;
-
-        // Now in this section, we take the function and assert the values
-        let user_value = this.validateJSON(value);
-        if (user_value === undefined)
-            return;
-        let condition = this.validateValues(user_value);
-        if (condition) {
-            string_area.value = JSON.stringify(user_value, undefined, 4);
-            this.setState({
-                internal_error: ""
-            })
-        }
-        this.setValidationStatus("validJSON", condition);
-        event.preventDefault()
     }
 
     renderForm() {
@@ -273,141 +453,141 @@ class TopicAnalysisService extends React.Component {
         const serviceMethodNames = service.methodNames;
 
         return (
-            /*
-            <React.Fragment>
-                <div className="container-fluid">
-                <form>
-                <div className="row">
-                    <div className="col-md-3 col-lg-3"
-                         style={{padding: "10px", fontSize: "13px", marginLeft: "10px"}}>Method Name:
-                    </div>
-                    <div className="col-md-3 col-lg-3">
-                        <select name="methodName"
-                                value={this.state.methodName}
-                                style={{height: "30px", width: "250px", fontSize: "13px", marginBottom: "5px"}}
-                                onChange={this.handleFormUpdate}>
-                            {this.renderServiceMethodNames(serviceMethodNames)}
-                        </select>
-                    </div>
-                </div>
-                <div className="row">
-                    <div className="col-md-3 col-lg-3"
-                         style={{padding: "10px", fontSize: "13px", marginLeft: "10px"}}>Input Form:
-                    </div>
-                    <div className="col-md-3 col-lg-3">
-                        <select name="inputFormType"
-                                value={this.state.inputFormType}
-                                style={{height: "30px", width: "250px", fontSize: "13px", marginBottom: "5px"}}
-                                onChange={this.handleFormUpdate}>
-                            {this.renderFormInput()}
-                        </select>
-                    </div>
-                </div>
-                <div className="form-row">
-                    <div className="form-group col-md-6">
-                        <label htmlFor="numOfTopics">Number of Topics</label>
-                        <div className="col-md-6">
-                        <input type='text' id="numOfTopics" name="numOfTopics" className="form-control"></input>
-                        </div>    
-                    </div>
-                    <div className="form-group col-md-6">
-                        <label htmlFor="topicDivider">Topic Divider</label>
-                        <div className="col-md-6">
-                        <input type='text' id="topicDivider" name="topicDivider" className="form-control"></input> 
-                        </div>   
-                    </div>
-                </div>
-                <div className="row">
-                    <div className="col-md-12 col-lg-12">
-                        {this.state.inputFormType === InputView.File && (
-                            <div>
-                                <DatasetUpload
-                                    uploadedFile={this.state.datasetFile}
-                                    handleFileUpload={this.handleFileUpload}
-                                    fileAccept={this.state.fileAccept}
-                                    setValidationStatus={valid =>
-                                        this.setValidationStatus("datasetFile", valid)
-                                    }
-                                />
-                                <div>
-                                    <p style={{textColor: 'red', fontSize: '13px'}}>{this.state.internal_error}</p>
-                                </div>
-                            </div>
-                        )}
-                        {this.state.inputFormType === InputView.Text && (
+            <MuiThemeProvider theme={theme}>
+                <div className={classes.root}>
+                    <form>
+                        <Grid container className={classes.container}>
+                            <Grid item sm className={classes.item}>
+                                <FormControl className={classes.formControl} error={Boolean(this.state.errors['methodName'])}>
+                                    <InputLabel htmlFor="methodName">Method Name</InputLabel>
+                                    <Select
+                                        value={this.state.methodName}
+                                        onChange={this.handleFormUpdate}
+                                        inputProps={{
+                                            name: 'methodName',
+                                            id: 'methodName',
+                                        }}
+                                    >
+                                        {this.renderMuiServiceMethodNames(serviceMethodNames)}
+                                    </Select>
+                                    {this.state.errors['methodName']
+                                        && <FormHelperText error>{this.state.errors['methodName']}</FormHelperText>}
+                                </FormControl>
+                            </Grid>
+                            <Grid item sm className={classes.item}>
+                                <FormControl margin='normal' className={classes.formControl}>
+                                    <InputLabel htmlFor="inputFormType">Input Type</InputLabel>
+                                    <Select
+                                        value={this.state.inputType}
+                                        onChange={this.handleFormUpdate}
+                                        inputProps={{
+                                            name: 'inputType',
+                                            id: 'inputType',
+                                        }}
+                                    >
+                                        {this.renderMuiFormInputTypes()}
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                        </Grid>
+                        <Divider variant="middle" className={classes.divider} />
+                        <Grid container className={classes.container}>
+                            <Grid item sm={12} className={classes.item}>
+                                {this.renderTextDataInput(classes)}
+                            </Grid>
+                        </Grid>
 
-                            <div className="form-group">
-                                <div>
-                                    <label style={{marginRight: "10px"}}>Text input for {this.state.methodName}</label>
-                                </div>
-                                <textarea id="string_area"
-                                          onChange={this.handleInputUpdate}
-                                          style={{
-                                              height: "200px",
-                                              width: this.props.sliderWidth,
-                                              fontSize: "12px"
-                                          }}/>
-                                <div align="center">
-                                    <button type="button" className="btn btn-primary"
-                                            onClick={this.handleValidateRequest}>Format/Validate Input
-                                    </button>
-                                    <button type="button" className="btn btn-primary"
-                                            onClick={this.resetInternalState}>Reset Internal State
-                                    </button>
-                                </div>
-                                <div>
-                                    <p>
-                                        <span style={{color: 'red', fontSize: '13px'}}>
-                                            {this.state.internal_error}
-                                        </span>
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <div className="row" align=" center">
-                    <button type=" button" className="btn btn-primary" disabled={!this.canBeInvoked()}
-                            onClick={this.submitAction}>Call Topic Analysis
-                    </button>
-                </div>
-            </form>
-            </div>
-            </React.Fragment>
-            */
-            <React.Fragment>
-                <MuiThemeProvider theme={theme}>
-                    <form className={classes.root}  >
-                        <FormControl className={classes.formControl}>
-                            <InputLabel htmlFor="methodName">Method Name</InputLabel>
-                            <Select
-                                value={this.state.methodName}
-                                onChange={this.handleFormUpdate}
-                                inputProps={{
-                                    name: 'methodName',
-                                    id: 'methodName',
-                                }}
-                            >
-                                {this.renderMuiServiceMethodNames(serviceMethodNames)}
-                            </Select>
-                        </FormControl>
-                        <FormControl>
-                            <InputLabel htmlFor="inputFormType">Input Type</InputLabel>
-                            <Select
-                                value={this.state.inputFormType}
-                                onChange={this.handleFormUpdate}
-                                inputProps={{
-                                    name: 'inputFormType',
-                                    id: 'inputFormType',
-                                }}
-                            >
-                                {this.renderMuiFormInput()}
-                            </Select>
-                        </FormControl>
+                        <Divider variant="middle" className={classes.divider} />
+                        <Grid container className={classes.container}>
+                            <Grid item sm={6} className={classes.item}>
+                                <TextField className={classes.formControl}
+                                    id={Parameters.NumOfTopics}
+                                    name={Parameters.NumOfTopics}
+                                    label="Number of Topics"
+                                    type="number"
+                                    margin="normal"
+                                    value={this.state[Parameters.NumOfTopics]}
+                                    onChange={this.handleFormUpdate}
+                                    error={Boolean(this.state.errors[Parameters.NumOfTopics])}
+                                    helperText={(Boolean(this.state.errors[Parameters.NumOfTopics]))
+                                        ? this.state.errors[Parameters.NumOfTopics]
+                                        : "Number of topics to be extracted"}
+                                />
+                            </Grid>
+                            <Grid item sm={6} className={classes.item}>
+                                <TextField className={classes.formControl}
+                                    id={Parameters.TopicDivider}
+                                    name={Parameters.TopicDivider}
+                                    label="Topic Divider"
+                                    type="number"
+                                    margin="normal"
+                                    value={this.state[Parameters.TopicDivider]}
+                                    onChange={this.handleFormUpdate}
+                                    error={Boolean(this.state.errors[Parameters.TopicDivider])}
+                                    helperText={(Boolean(this.state.errors[Parameters.TopicDivider]))
+                                        ? this.state.errors[Parameters.TopicDivider]
+                                        : "Number of topic dividers"}
+                                />
+                            </Grid>
+                            <Grid item sm={6} className={classes.item}>
+                                <TextField className={classes.formControl}
+                                    id={Parameters.MaxIter}
+                                    name={Parameters.MaxIter}
+                                    label="Max Iteration"
+                                    type="number"
+                                    margin="normal"
+                                    value={this.state[Parameters.MaxIter]}
+                                    onChange={this.handleFormUpdate}
+                                    error={Boolean(this.state.errors[Parameters.MaxIter])}
+                                    helperText={(Boolean(this.state.errors[Parameters.MaxIter]))
+                                        ? this.state.errors[Parameters.MaxIter]
+                                        : "Maximum number of Iteration"}
+                                />
+                            </Grid>
+                            <Grid item sm={6} className={classes.item}>
+                                <TextField className={classes.formControl}
+                                    id={Parameters.Beta}
+                                    name={Parameters.Beta}
+                                    label="Beta"
+                                    type="number"
+                                    margin="normal"
+                                    value={this.state[Parameters.Beta]}
+                                    onChange={this.handleFormUpdate}
+                                    error={Boolean(this.state.errors[Parameters.Beta])}
+                                    helperText={(Boolean(this.state.errors[Parameters.Beta]))
+                                        ? this.state.errors[Parameters.Beta]
+                                        : "Beta value of the topic function"}
+                                />
+                            </Grid>
+                        </Grid>
+                        <Divider variant="middle" className={classes.divider} />
+                        <Grid container className={classes.container}>
+                            <Grid item sm={6} className={classes.item}>
+                                <Button variant="contained" color="primary" className={classes.button}
+                                    onClick={this.validateAllValues}>
+                                    <ValidateIcon className={classes.leftIcon} />
+                                    Validate Input
+                           </Button>
+                            </Grid>
+                            <Grid item sm={6} className={classes.item}>
+                                <Button variant="contained" color="primary" className={classes.button}
+                                    onClick={this.resetInternalState}>
+                                    <ResetIcon className={classes.leftIcon} />
+                                    Reset Form
+                           </Button>
+                            </Grid>
+                            <Grid item sm={12} className={classes.item}>
+                                <Button variant="contained" color="primary" className={classes.button}
+                                    onClick={this.submitAction}>
+                                    <CallIcon className={classes.leftIcon} />
+                                    Call Topic Analysis
+                           </Button>
+                            </Grid>
+                        </Grid>
                     </form>
-                </MuiThemeProvider>
-            </React.Fragment>
-        )
+                </div>
+            </MuiThemeProvider>
+        );
     }
 
     renderComplete() {
@@ -485,6 +665,7 @@ class TopicAnalysisService extends React.Component {
 
 TopicAnalysisService.propTypes = {
     classes: PropTypes.object.isRequired,
+    theme: PropTypes.object.isRequired,
 };
 
-export default withStyles({})(TopicAnalysisService);
+export default withTheme()(withStyles(styles)(TopicAnalysisService));
