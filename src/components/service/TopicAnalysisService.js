@@ -387,7 +387,7 @@ class TopicAnalysisService extends React.Component {
                 if (this.state.tokenize) {
                     let tokenized_docs = [];
                     for (let doc of request_inputs.docs) {
-                        tokenized_docs.concat(this.tokenize(doc));
+                        tokenized_docs = tokenized_docs.concat(this.tokenize(doc));
                     }
                     request_inputs.docs = tokenized_docs;
                 }
@@ -529,11 +529,11 @@ class TopicAnalysisService extends React.Component {
                             </Grid>
                             <Grid item sm={12} className={classes.item}>
                                 <FormControlLabel
-                                        control={
-                                            <Checkbox checked={this.state.tokenize} disabled/>
-                                        }
-                                        label="Tokenize input texts"
-                                    />
+                                    control={
+                                        <Checkbox checked={this.state.tokenize} disabled />
+                                    }
+                                    label="Tokenize input texts"
+                                />
                             </Grid>
                         </Grid>
 
@@ -631,24 +631,27 @@ class TopicAnalysisService extends React.Component {
     }
 
     renderComplete() {
+        const { classes } = this.props;
         let response = [this.props.response];
 
         response['handle'] = "https://tz-services-1.snet.sh:2298/topic-analysis/api/v1.0/results?handle=" + response['handle'];
         return (
-            <React.Fragment>
+            <MuiThemeProvider theme={theme}>
                 <Card
                     style={{
                         backgroundColor: "#deffde"
                     }}
                     elevation={0}
                 >
-                    <CardContent style={{ textAlign: "center" }}>
+                    <CardContent className={classes.centerText}>
                         <h4>
                             <CheckCircle style={{ fontSize: "36px", color: "#54C21F", textAlign: "center" }} />
                             <br />
                             Analysis started!
                         </h4>
-                        <p>Follow the link below to check the status of the analysis.</p>
+                        <Typography variant="body2">
+                            Follow the link below to check the status of the analysis.
+                        </Typography>
                         <p
                             style={{
                                 marginTop: "15px",
@@ -677,11 +680,11 @@ class TopicAnalysisService extends React.Component {
                 />
                 <ReactJson src={response} theme="apathy:inverted" />
                 <div className="row" align="center">
-                    <button type="button" className="btn btn-primary" onClick={this.download}>
+                    <Button variant="contained" color="primary" className={classes.button} onClick={this.download}>
                         Download Results JSON file
-                    </button>
+                    </Button>
                 </div>
-            </React.Fragment>
+            </MuiThemeProvider>
         );
     }
 
