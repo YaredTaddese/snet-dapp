@@ -34,7 +34,8 @@ const Parameters = {
     NumOfTopics: 'Number of Topics', TopicDivider: 'Topic Divider', MaxIter: 'Max Iteration', Beta: 'Beta'
 };
 const DefaultInputs = {
-    "docs": ["Toward Democratic, Lawful Citizenship for AIs, Robots, and Corporations",
+    "docs": [
+        "Toward Democratic, Lawful Citizenship for AIs, Robots, and Corporations",
         "Dr. Ben Goertzel, CEO of SingularityNET, shares his thoughts about the AI Citizenship Test",
         "I am writing this on a plane flying away from Malta, where I just spoke about SingularityNET at the Malta Blockchain Summit.",
         "It was my first time on Malta, and after the event, I took the afternoon to explore some of the elegant, quaint, ancient neighborhoods of the island.",
@@ -161,8 +162,6 @@ class TopicAnalysisService extends React.Component {
 
             errors: {},
 
-            tokenize: true,
-
             fileAccept: "text/plain",
             inputType: InputType.Text,
         }
@@ -195,6 +194,37 @@ class TopicAnalysisService extends React.Component {
                 return { [inputType]: "Text can not be empty" };
             }
         } else {
+            try {
+                let json = JSON.parse(textValue);
+                if (!(json instanceof Array) || !(json.every(item => typeof item === 'string'))) {
+                    if (fileName) {
+                        return { [inputType]: `File '${fileName}' content is not an array of strings in JSON format.` };
+                    } else {
+                        return { [inputType]: `Text must be an array of strings in JSON format.` };
+                    }
+                } else if (json.length < 2) {
+                    if (fileName) {
+                        return {
+                            [inputType]:
+                                `The number of strings in the array of  File '${fileName}' content must be greater than 1.`
+                        };
+                    } else {
+                        return { [inputType]: `The number of strings in the array must be greater than 1.` };
+                    }
+                }
+            } catch (err) {
+                if (err instanceof SyntaxError) {
+                    if (fileName) {
+                        return { [inputType]: `File '${fileName}' content is not a valid JSON.` };
+                    } else {
+                        return { [inputType]: `Text is not a valid JSON.` };
+                    }
+                }
+
+                // if error is not syntax error, then it is not about valid or invalid json
+                return { [inputType]: `Something went wrong when trying to parse text to JSON. Please, try again.` };
+            }
+
             return { [inputType]: null };
         }
     }
@@ -342,7 +372,7 @@ class TopicAnalysisService extends React.Component {
 
                 if (this.state.inputType === InputType.Text) {
                     state_error[InputType.Text] = null;
-                    this.setState({ [InputType.Text]: DefaultInputs.docs.join('') });
+                    this.setState({ [InputType.Text]: JSON.stringify(DefaultInputs.docs) });
                 }
 
                 this.setErrorState(state_error);    // discard errors if there were
@@ -360,10 +390,6 @@ class TopicAnalysisService extends React.Component {
     /****************************************
      * Form submitting operations
      ****************************************/
-    tokenize(text_string) {
-        return text_string.split('.');
-    }
-
     createRequestInputs() {
         let areAllValidInputs = this.validateAllValues();
 
@@ -375,22 +401,16 @@ class TopicAnalysisService extends React.Component {
             request_inputs.maxiter = this.state[Parameters.MaxIter];
             request_inputs.beta = this.state[Parameters.Beta];
 
+            // since JSON format is validated, no parsing trouble is assumed when processing texts
             if (this.state.inputType === InputType.Text) {
-                if (this.state.tokenize) {
-                    request_inputs.docs = this.tokenize(this.state[InputType.Text]);
-                } else {
-                    request_inputs.docs = [this.state[InputType.Text]];
-                }
+                request_inputs.docs = JSON.parse(this.state[InputType.Text]);
             } else {
-                request_inputs.docs = this.state.file_texts.map(text => text.content);
-
-                if (this.state.tokenize) {
-                    let tokenized_docs = [];
-                    for (let doc of request_inputs.docs) {
-                        tokenized_docs = tokenized_docs.concat(this.tokenize(doc));
-                    }
-                    request_inputs.docs = tokenized_docs;
+                let docs = [];
+                for (let file_text of this.state.file_texts) {
+                    docs = docs.concat(JSON.parse(file_text.content));
                 }
+
+                request_inputs.docs = docs;
             }
 
             return request_inputs;
@@ -454,7 +474,7 @@ class TopicAnalysisService extends React.Component {
                 variant="outlined"
                 onChange={this.handleFormUpdate}
                 error={Boolean(this.state.errors[InputType.Text])}
-                helperText={this.state.errors[InputType.Text]}
+                helperText={this.state.errors[InputType.Text] || 'Text must be an array of strings in JSON format.'}
             />;
         } else if (this.state.inputType === InputType.File) {
             return (<div className={classes.formControl}>
@@ -527,14 +547,6 @@ class TopicAnalysisService extends React.Component {
                             <Grid item sm={12} className={classes.item}>
                                 {this.renderTextDataInput(classes)}
                             </Grid>
-                            <Grid item sm={12} className={classes.item}>
-                                <FormControlLabel
-                                    control={
-                                        <Checkbox checked={this.state.tokenize} disabled />
-                                    }
-                                    label="Tokenize input texts"
-                                />
-                            </Grid>
                         </Grid>
 
                         <Divider variant="middle" className={classes.divider} />
@@ -604,24 +616,17 @@ class TopicAnalysisService extends React.Component {
                         <Grid container className={classes.container}>
                             <Grid item sm={6} className={classes.item}>
                                 <Button variant="contained" color="primary" className={classes.button}
-                                    onClick={this.validateAllValues}>
-                                    <ValidateIcon className={classes.leftIcon} />
-                                    Validate Input
-                           </Button>
-                            </Grid>
-                            <Grid item sm={6} className={classes.item}>
-                                <Button variant="contained" color="primary" className={classes.button}
                                     onClick={this.resetInternalState}>
                                     <ResetIcon className={classes.leftIcon} />
-                                    Reset Form
-                           </Button>
+                                    Reset Form Inputs
+                                </Button>
                             </Grid>
-                            <Grid item sm={12} className={classes.item}>
+                            <Grid item sm={6} className={classes.item}>
                                 <Button variant="contained" color="primary" className={classes.button}
                                     onClick={this.submitAction}>
                                     <CallIcon className={classes.leftIcon} />
                                     Call Topic Analysis
-                           </Button>
+                                </Button>
                             </Grid>
                         </Grid>
                     </form>

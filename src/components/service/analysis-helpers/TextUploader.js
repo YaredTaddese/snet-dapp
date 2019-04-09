@@ -66,7 +66,7 @@ class TextUploader extends React.Component {
                 let file_text = {
                     fileName: file.name,
                     content: null,
-                    error: `File '${file.name}' is incorrect type. Supported file type is ${this.props.fileAccept}`,
+                    error: `File '${file.name}' is incorrect type. Supported file type is ${this.props.fileAccept}.`,
                 };
                 this.setState((state, props) => ({
                     texts: state.texts.concat([file_text])
@@ -122,7 +122,7 @@ class TextUploader extends React.Component {
                 </ListItemIcon>
                 <ListItemText>
                     <Typography variant="body2">
-                        {`File '${rejectedFile.name}' is incorrect type. Supported file type is ${this.props.fileAccept}`}
+                        {`File '${rejectedFile.name}' is incorrect type. Supported file type is ${this.props.fileAccept}.`}
                     </Typography>
                 </ListItemText>
 
