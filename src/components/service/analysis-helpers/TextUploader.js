@@ -9,7 +9,7 @@ import { withStyles } from "@material-ui/core/styles";
 import { Typography, List, ListItem, ListItemIcon, ListItemText, CircularProgress } from "@material-ui/core";
 import { CloudUpload, Check, Error } from "@material-ui/icons";
 
-const styles = theme => ({
+const styles = (theme) => ({
     fileInfo: {
         borderRadius: 0,
         position: relative,
@@ -152,7 +152,7 @@ class TextUploader extends React.Component {
         return <List>
             {textListItems.concat(rejectedFilesListItems)}
         </List>;
-    };
+    }
 
     render() {
         const { classes } = this.props;
@@ -162,7 +162,7 @@ class TextUploader extends React.Component {
             <React.Fragment>
                 <Dropzone
                     name="dataset"
-                    multiple={true}
+                    multiple={this.props.multiple}
                     onDrop={
                         files => {
                             // reset texts to empty and start processing uploaded files
