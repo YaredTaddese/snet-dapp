@@ -339,7 +339,7 @@ class TopicAnalysisService extends React.Component {
 
                 if (this.state.inputType === InputType.Text) {
                     state_error[InputType.Text] = null;
-                    this.setState({ [InputType.Text]: DefaultInputs.docs.join(' ')});
+                    this.setState({ [InputType.Text]: DefaultInputs.docs.join(' ') });
                 }
 
                 this.setErrorState(state_error);    // discard errors if there were
@@ -372,7 +372,7 @@ class TopicAnalysisService extends React.Component {
             if (this.state.inputType === InputType.Text) {
                 request_inputs.docs = [this.state[InputType.Text]];
             } else {
-                request_inputs.docs = [this.state.file_texts.join(' ')];
+                request_inputs.docs = [this.state.file_texts.map((file_text) => file_text.content).join(' ')];
             }
 
             return request_inputs;

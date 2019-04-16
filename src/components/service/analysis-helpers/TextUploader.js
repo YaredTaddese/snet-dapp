@@ -129,29 +129,39 @@ class TextUploader extends React.Component {
             </ListItem>;
         });
 
-        let textListItems = this.state.texts.map((text, index) => {
-            return <ListItem key={index} className={(text.error) ? classes.fileError : classes.fileInfo}>
-                <ListItemIcon>
-                    {(text.error)
-                        ? <Error className={classes.errorColor} />
-                        : <Check className={classes.successColor} />
-                    }
-                </ListItemIcon>
-                <ListItemText>
-                    <Typography variant="body2">
+        if (rejectedFilesListItems.length > 0) {
+            return <List>
+                {rejectedFilesListItems}
+            </List>;
+        } else {
+            let errorFiles = this.state.texts.filter((text) => text.error);
+
+            let filesToBeShown = (errorFiles.length > 0) ? errorFiles : this.state.texts;
+
+            let textListItems = filesToBeShown.map((text, index) => {
+                return <ListItem key={index} className={(text.error) ? classes.fileError : classes.fileInfo}>
+                    <ListItemIcon>
                         {(text.error)
-                            ? text.error
-                            : `File '${text.fileName}' selected with ${text.size} bytes size.`}
-                    </Typography>
-                </ListItemText>
+                            ? <Error className={classes.errorColor} />
+                            : <Check className={classes.successColor} />
+                        }
+                    </ListItemIcon>
+                    <ListItemText>
+                        <Typography variant="body2">
+                            {(text.error)
+                                ? text.error
+                                : `File '${text.fileName}' selected with ${text.size} bytes size.`}
+                        </Typography>
+                    </ListItemText>
 
-            </ListItem>;
-        })
+                </ListItem>;
+            })
 
 
-        return <List>
-            {textListItems.concat(rejectedFilesListItems)}
-        </List>;
+            return <List>
+                {textListItems}
+            </List>;
+        }
     }
 
     render() {
@@ -189,7 +199,7 @@ class TextUploader extends React.Component {
                                 {
                                     (this.loading)
                                         ? <CircularProgress className={classes.progress} />
-                                        : <CloudUpload style={{ fontSize: "48px" }}/>
+                                        : <CloudUpload style={{ fontSize: "48px" }} />
                                 }
                                 {
                                     (isDragActive)
