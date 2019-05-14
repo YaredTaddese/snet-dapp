@@ -187,7 +187,7 @@ class NodeImportance extends React.Component {
      **************************************/
     getInitialState() {
         return {
-            serviceName: "NetworkAnalyticsRobustness",
+            serviceName: "NodeImportance",
             methodName: "Select a method",
 
             file_texts: [],
